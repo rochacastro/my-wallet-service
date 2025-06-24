@@ -53,22 +53,24 @@ public class Wallet {
   }
 
   public void depositAmount(BigDecimal deposit) {
-    if (deposit == null) throw new IllegalArgumentException("Deposit can't be null or zero");
+    if (deposit == null || deposit.compareTo(BigDecimal.ZERO) <= 0)
+      throw new IllegalArgumentException("Deposit amount must be positive and non-null");
     this.amount = this.amount.add(deposit);
   }
 
   public void withdrawAmount(BigDecimal withdraw) {
-    if (withdraw == null) throw new IllegalArgumentException("Deposit can't be null or zero");
+    if (withdraw == null || withdraw.compareTo(BigDecimal.ZERO) <= 0)
+      throw new IllegalArgumentException("Withdraw amount must be positive and non-null");
     if (withdraw.compareTo(this.amount) > 0)
-      throw new IllegalArgumentException("You cannot withdraw more than you have");
-
+      throw new IllegalArgumentException("Insufficient funds: cannot withdraw more than the current balance");
     this.amount = this.amount.subtract(withdraw);
   }
 
   public boolean balanceAvailable(BigDecimal amount) {
-    if (amount == null) throw new IllegalArgumentException("Transfer value can't be null or zero");
+    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
+      throw new IllegalArgumentException("Transfer amount must be positive and non-null");
     if (amount.compareTo(this.amount) > 0)
-      throw new IllegalArgumentException("You cannot transfer more than you have");
+      throw new IllegalArgumentException("Insufficient funds: cannot transfer more than the current balance");
     return true;
   }
 }

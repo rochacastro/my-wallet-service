@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -173,5 +174,90 @@ class WalletServiceTest {
             () -> walletService.getUserHistoricalBalance(VALID_CPF, date));
 
     assertTrue(exception.getMessage().contains("Not founded any amount"));
+  }
+
+  @Test
+  void shouldThrowWhenInsufficientFundsOnTransfer() {
+    BigDecimal amount = BigDecimal.valueOf(1000);
+    WalletTransferRequest transferRequest =
+        new WalletTransferRequest(VALID_CPF, VALID_CPF_2, amount);
+
+    User fromUser = mock(User.class);
+    Wallet fromWallet = mock(Wallet.class);
+
+    when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
+    when(fromUser.getWallet()).thenReturn(fromWallet);
+
+    when(fromWallet.balanceAvailable(amount))
+        .thenThrow(
+            new IllegalArgumentException(
+                "Insufficient funds: cannot transfer more than the current balance"));
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> walletService.transferAmount(transferRequest));
+    assertTrue(exception.getMessage().contains("Insufficient funds"));
+  }
+
+  @Test
+  void shouldThrowWhenTransferAmountIsNull() {
+    WalletTransferRequest transferRequest = new WalletTransferRequest(VALID_CPF, VALID_CPF_2, null);
+    User fromUser = mock(User.class);
+    when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
+    Wallet fromWallet = mock(Wallet.class);
+    when(fromUser.getWallet()).thenReturn(fromWallet);
+    when(fromWallet.balanceAvailable(null))
+        .thenThrow(new IllegalArgumentException("Transfer amount must be positive and non-null"));
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> walletService.transferAmount(transferRequest));
+    assertTrue(exception.getMessage().contains("positive and non-null"));
+  }
+
+  @Test
+  void shouldThrowWhenTransferAmountIsZeroOrNegative() {
+    BigDecimal[] invalidAmounts = {BigDecimal.ZERO, BigDecimal.valueOf(-10)};
+    for (BigDecimal invalidAmount : invalidAmounts) {
+      WalletTransferRequest transferRequest =
+          new WalletTransferRequest(VALID_CPF, VALID_CPF_2, invalidAmount);
+      User fromUser = mock(User.class);
+      when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
+      Wallet fromWallet = mock(Wallet.class);
+      when(fromUser.getWallet()).thenReturn(fromWallet);
+      when(fromWallet.balanceAvailable(invalidAmount))
+          .thenThrow(new IllegalArgumentException("Transfer amount must be positive and non-null"));
+
+      IllegalArgumentException exception =
+          assertThrows(
+              IllegalArgumentException.class, () -> walletService.transferAmount(transferRequest));
+      assertTrue(exception.getMessage().contains("positive and non-null"));
+    }
+  }
+
+  @Test
+  void shouldSaveBothWalletsAndHistoriesOnTransfer() {
+    BigDecimal amount = BigDecimal.valueOf(25);
+    WalletTransferRequest transferRequest =
+        new WalletTransferRequest(VALID_CPF, VALID_CPF_2, amount);
+
+    User fromUser = mock(User.class);
+    User toUser = mock(User.class);
+    Wallet fromWallet = mock(Wallet.class);
+    Wallet toWallet = mock(Wallet.class);
+
+    when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
+    when(userService.findUserByCpf(VALID_CPF_2)).thenReturn(toUser);
+    when(fromUser.getWallet()).thenReturn(fromWallet);
+    when(toUser.getWallet()).thenReturn(toWallet);
+    when(fromWallet.balanceAvailable(amount)).thenReturn(true);
+
+    walletService.transferAmount(transferRequest);
+
+    verify(fromWallet).withdrawAmount(amount);
+    verify(toWallet).depositAmount(amount);
+    verify(walletRepository).save(fromWallet);
+    verify(walletRepository).save(toWallet);
+    verify(walletHistoricalRepository, times(2)).save(any(WalletHistory.class));
   }
 }

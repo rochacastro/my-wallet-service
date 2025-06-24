@@ -40,6 +40,11 @@ public class WalletService {
       final User userTo = userService.findUserByCpf(walletTransferRequest.to());
       userFromWallet.withdrawAmount(amount);
       userTo.getWallet().depositAmount(amount);
+      repository.save(userFromWallet);
+      repository.save(userTo.getWallet());
+
+      saveWalletHistory(userFromWallet);
+      saveWalletHistory(userTo.getWallet());
     }
   }
 
