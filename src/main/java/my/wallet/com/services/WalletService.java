@@ -1,6 +1,7 @@
 package my.wallet.com.services;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.OptimisticLockException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import my.wallet.com.models.User;
@@ -12,6 +13,7 @@ import my.wallet.com.vos.WalletBalance;
 import my.wallet.com.vos.WalletRequest;
 import my.wallet.com.vos.WalletTransferRequest;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,32 +22,38 @@ public class WalletService {
   private final WalletRepository repository;
   private final WalletHistoricalRepository walletHistoricalRepository;
   private final UserService userService;
+  private final WalletProcessorService walletProcessorService;
 
   @Lazy
   public WalletService(
       final WalletRepository repository,
       final UserService userService,
-      final WalletHistoricalRepository walletHistoricalRepository) {
+      final WalletHistoricalRepository walletHistoricalRepository,
+      final WalletProcessorService walletProcessorService) {
     this.repository = repository;
     this.userService = userService;
     this.walletHistoricalRepository = walletHistoricalRepository;
+    this.walletProcessorService = walletProcessorService;
   }
 
-  @Transactional
-  public void transferAmount(final WalletTransferRequest walletTransferRequest) {
-    validateUserTransferForTheSameUser(walletTransferRequest);
-    final BigDecimal amount = walletTransferRequest.amount();
-    final User userFrom = userService.findUserByCpf(walletTransferRequest.from());
-    final Wallet userFromWallet = userFrom.getWallet();
-    if (userFromWallet.balanceAvailable(amount)) {
-      final User userTo = userService.findUserByCpf(walletTransferRequest.to());
-      userFromWallet.withdrawAmount(amount);
-      userTo.getWallet().depositAmount(amount);
-      repository.save(userFromWallet);
-      repository.save(userTo.getWallet());
-
-      saveWalletHistory(userFromWallet);
-      saveWalletHistory(userTo.getWallet());
+  public void transferAmountWithRetry(WalletTransferRequest walletTransferRequest) {
+    int maxRetries = 3;
+    int attempt = 0;
+    while (true) {
+      try {
+        walletProcessorService.transferAmount(walletTransferRequest);
+        break;
+      } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
+        if (++attempt > maxRetries) {
+          throw e;
+        }
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(ie);
+        }
+      }
     }
   }
 
@@ -57,7 +65,7 @@ public class WalletService {
     wallet.depositAmount(walletRequest.amount());
     repository.save(wallet);
 
-    saveWalletHistory(wallet);
+    walletProcessorService.saveWalletHistory(wallet);
   }
 
   @Transactional
@@ -67,7 +75,7 @@ public class WalletService {
     wallet.withdrawAmount(walletRequest.amount());
     repository.save(wallet);
 
-    saveWalletHistory(wallet);
+    walletProcessorService.saveWalletHistory(wallet);
   }
 
   public void createWallet(User user) {
@@ -92,17 +100,4 @@ public class WalletService {
                         String.format("Not founded any amount in the date %s or before", date)));
     return new WalletBalance(walletHistory.getAmount());
   }
-
-  private void saveWalletHistory(final Wallet wallet) {
-    final WalletHistory walletHistory =
-        new WalletHistory(wallet.getId(), wallet.getAmount(), LocalDateTime.now());
-    walletHistoricalRepository.save(walletHistory);
-  }
-
-  private void validateUserTransferForTheSameUser(final WalletTransferRequest walletTransferRequest) {
-    if (walletTransferRequest.from().equals(walletTransferRequest.to())) {
-      throw new IllegalArgumentException("User cannot transfer to itself");
-    }
-  }
-
 }

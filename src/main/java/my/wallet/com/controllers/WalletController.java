@@ -54,7 +54,7 @@ public class WalletController {
   @PatchMapping(value = "/v1/transfer")
   public ResponseEntity<Void> transferAmount(
       final @RequestBody @Valid WalletTransferRequest walletTransferRequest) {
-    service.transferAmount(walletTransferRequest);
+    service.transferAmountWithRetry(walletTransferRequest);
     return ResponseEntity.ok().build();
   }
 }
