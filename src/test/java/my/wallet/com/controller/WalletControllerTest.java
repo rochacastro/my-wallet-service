@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import my.wallet.com.controllers.WalletController;
-import my.wallet.com.services.WalletService;
+import my.wallet.com.services.WalletHandlerService;
 import my.wallet.com.vos.WalletBalance;
 import my.wallet.com.vos.WalletRequest;
 import my.wallet.com.vos.WalletTransferRequest;
@@ -35,7 +35,7 @@ class WalletControllerTest {
 
   @Autowired private MockMvc mockMvc;
 
-  @MockBean private WalletService walletService;
+  @MockBean private WalletHandlerService walletHandlerService;
 
   @Autowired private ObjectMapper objectMapper;
 
@@ -51,7 +51,7 @@ class WalletControllerTest {
                 .header("requestTraceId", "123"))
         .andExpect(status().isOk());
 
-    verify(walletService).depositAmount(any(WalletRequest.class));
+    verify(walletHandlerService).depositAmount(any(WalletRequest.class));
   }
 
   @Test
@@ -66,14 +66,14 @@ class WalletControllerTest {
                 .header("requestTraceId", "123"))
         .andExpect(status().isOk());
 
-    verify(walletService).withdrawAmount(any(WalletRequest.class));
+    verify(walletHandlerService).withdrawAmount(any(WalletRequest.class));
   }
 
   @Test
   void testBalance() throws Exception {
     WalletBalance balance = new WalletBalance(BigDecimal.valueOf(150.0));
 
-    when(walletService.getUserBalance(VALID_CPF)).thenReturn(balance);
+    when(walletHandlerService.getUserBalance(VALID_CPF)).thenReturn(balance);
 
     mockMvc
         .perform(
@@ -87,7 +87,7 @@ class WalletControllerTest {
     LocalDateTime date = LocalDateTime.now().minusDays(1);
     WalletBalance balance = new WalletBalance(BigDecimal.valueOf(120.0));
 
-    when(walletService.getUserHistoricalBalance(eq(VALID_CPF), any(LocalDateTime.class)))
+    when(walletHandlerService.getUserHistoricalBalance(eq(VALID_CPF), any(LocalDateTime.class)))
         .thenReturn(balance);
 
     mockMvc
@@ -113,6 +113,6 @@ class WalletControllerTest {
                 .header("requestTraceId", "123"))
         .andExpect(status().isOk());
 
-    verify(walletService).transferAmount(any(WalletTransferRequest.class));
+    verify(walletHandlerService).transferAmountWithRetry(any(WalletTransferRequest.class));
   }
 }

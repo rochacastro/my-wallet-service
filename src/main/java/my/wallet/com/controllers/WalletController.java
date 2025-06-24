@@ -4,7 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
-import my.wallet.com.services.WalletService;
+import my.wallet.com.services.WalletHandlerService;
 import my.wallet.com.vos.WalletBalance;
 import my.wallet.com.vos.WalletRequest;
 import my.wallet.com.vos.WalletTransferRequest;
@@ -20,9 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/wallet")
 public class WalletController {
 
-  private final WalletService service;
+  private final WalletHandlerService service;
 
-  public WalletController(final WalletService service) {
+  public WalletController(final WalletHandlerService service) {
     this.service = service;
   }
 
@@ -54,7 +54,7 @@ public class WalletController {
   @PatchMapping(value = "/v1/transfer")
   public ResponseEntity<Void> transferAmount(
       final @RequestBody @Valid WalletTransferRequest walletTransferRequest) {
-    service.transferAmount(walletTransferRequest);
+    service.transferAmountWithRetry(walletTransferRequest);
     return ResponseEntity.ok().build();
   }
 }

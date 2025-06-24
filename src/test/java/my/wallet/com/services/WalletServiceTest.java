@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.OptimisticLockException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -267,7 +270,37 @@ class WalletServiceTest {
         new WalletTransferRequest(VALID_CPF, VALID_CPF, BigDecimal.valueOf(100));
 
     IllegalArgumentException exception =
-        assertThrows(IllegalArgumentException.class, () -> walletService.transferAmount(transferRequest));
+        assertThrows(
+            IllegalArgumentException.class, () -> walletService.transferAmount(transferRequest));
     assertTrue(exception.getMessage().contains("User cannot transfer to itself"));
+  }
+
+  @Test
+  void shouldThrowOptimisticLockExceptionOnRepositorySave() {
+    BigDecimal amount = BigDecimal.valueOf(50);
+    WalletTransferRequest transferRequest =
+        new WalletTransferRequest(VALID_CPF, VALID_CPF_2, amount);
+
+    User fromUser = mock(User.class);
+    User toUser = mock(User.class);
+    Wallet fromWallet = mock(Wallet.class);
+    Wallet toWallet = mock(Wallet.class);
+
+    when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
+    when(userService.findUserByCpf(VALID_CPF_2)).thenReturn(toUser);
+    when(fromUser.getWallet()).thenReturn(fromWallet);
+    when(toUser.getWallet()).thenReturn(toWallet);
+    when(fromWallet.balanceAvailable(amount)).thenReturn(true);
+
+    doNothing().when(fromWallet).withdrawAmount(amount);
+    doNothing().when(toWallet).depositAmount(amount);
+
+    doThrow(new OptimisticLockException("Optimistic lock error"))
+        .when(walletRepository)
+        .save(fromWallet);
+
+    assertThrows(
+        OptimisticLockException.class, () -> walletService.transferAmount(transferRequest));
+    verify(walletRepository).save(fromWallet);
   }
 }
