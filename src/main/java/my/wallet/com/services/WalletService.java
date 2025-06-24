@@ -33,6 +33,7 @@ public class WalletService {
 
   @Transactional
   public void transferAmount(final WalletTransferRequest walletTransferRequest) {
+    validateUserTransferForTheSameUser(walletTransferRequest);
     final BigDecimal amount = walletTransferRequest.amount();
     final User userFrom = userService.findUserByCpf(walletTransferRequest.from());
     final Wallet userFromWallet = userFrom.getWallet();
@@ -97,4 +98,11 @@ public class WalletService {
         new WalletHistory(wallet.getId(), wallet.getAmount(), LocalDateTime.now());
     walletHistoricalRepository.save(walletHistory);
   }
+
+  private void validateUserTransferForTheSameUser(final WalletTransferRequest walletTransferRequest) {
+    if (walletTransferRequest.from().equals(walletTransferRequest.to())) {
+      throw new IllegalArgumentException("User cannot transfer to itself");
+    }
+  }
+
 }

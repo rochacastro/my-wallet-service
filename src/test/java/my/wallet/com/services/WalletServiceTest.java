@@ -260,4 +260,14 @@ class WalletServiceTest {
     verify(walletRepository).save(toWallet);
     verify(walletHistoricalRepository, times(2)).save(any(WalletHistory.class));
   }
+
+  @Test
+  void shouldThrowWhenTransferAmountToTheSameUser() {
+    WalletTransferRequest transferRequest =
+        new WalletTransferRequest(VALID_CPF, VALID_CPF, BigDecimal.valueOf(100));
+
+    IllegalArgumentException exception =
+        assertThrows(IllegalArgumentException.class, () -> walletService.transferAmount(transferRequest));
+    assertTrue(exception.getMessage().contains("User cannot transfer to itself"));
+  }
 }

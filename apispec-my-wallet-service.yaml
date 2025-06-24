@@ -6,7 +6,7 @@ servers:
 - url: http://localhost:8080
   description: Generated server url
 paths:
-  /user:
+  /api/user:
     post:
       tags:
       - user-controller
@@ -24,7 +24,7 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserResponse"
-  /wallet/v1/withdraw:
+  /api/wallet/v1/withdraw:
     patch:
       tags:
       - wallet-controller
@@ -38,7 +38,7 @@ paths:
       responses:
         "200":
           description: OK
-  /wallet/v1/transfer:
+  /api/wallet/v1/transfer:
     patch:
       tags:
       - wallet-controller
@@ -52,7 +52,7 @@ paths:
       responses:
         "200":
           description: OK
-  /wallet/v1/deposit:
+  /api/wallet/v1/deposit:
     patch:
       tags:
       - wallet-controller
@@ -66,7 +66,7 @@ paths:
       responses:
         "200":
           description: OK
-  /wallet/v1/historical-balance:
+  /api/wallet/v1/historical-balance:
     get:
       tags:
       - wallet-controller
@@ -91,7 +91,7 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/WalletBalance"
-  /wallet/v1/balance:
+  /api/wallet/v1/balance:
     get:
       tags:
       - wallet-controller

@@ -5,6 +5,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -18,6 +19,8 @@ public class Wallet {
   @OneToOne
   @JoinColumn(name = "user_id", referencedColumnName = "id")
   private User user;
+
+  @Version private Long version;
 
   private BigDecimal amount;
 
@@ -52,6 +55,14 @@ public class Wallet {
     this.user = user;
   }
 
+  public Long getVersion() {
+    return version;
+  }
+
+  public void setVersion(Long version) {
+    this.version = version;
+  }
+
   public void depositAmount(BigDecimal deposit) {
     if (deposit == null || deposit.compareTo(BigDecimal.ZERO) <= 0)
       throw new IllegalArgumentException("Deposit amount must be positive and non-null");
@@ -62,7 +73,8 @@ public class Wallet {
     if (withdraw == null || withdraw.compareTo(BigDecimal.ZERO) <= 0)
       throw new IllegalArgumentException("Withdraw amount must be positive and non-null");
     if (withdraw.compareTo(this.amount) > 0)
-      throw new IllegalArgumentException("Insufficient funds: cannot withdraw more than the current balance");
+      throw new IllegalArgumentException(
+          "Insufficient funds: cannot withdraw more than the current balance");
     this.amount = this.amount.subtract(withdraw);
   }
 
@@ -70,7 +82,8 @@ public class Wallet {
     if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
       throw new IllegalArgumentException("Transfer amount must be positive and non-null");
     if (amount.compareTo(this.amount) > 0)
-      throw new IllegalArgumentException("Insufficient funds: cannot transfer more than the current balance");
+      throw new IllegalArgumentException(
+          "Insufficient funds: cannot transfer more than the current balance");
     return true;
   }
 }
