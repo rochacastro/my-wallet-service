@@ -1,0 +1,167 @@
+openapi: 3.1.0
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+paths:
+  /user:
+    post:
+      tags:
+      - user-controller
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /wallet/v1/withdraw:
+    patch:
+      tags:
+      - wallet-controller
+      operationId: withdrawByCpf
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+  /wallet/v1/transfer:
+    patch:
+      tags:
+      - wallet-controller
+      operationId: transferAmount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletTransferRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+  /wallet/v1/deposit:
+    patch:
+      tags:
+      - wallet-controller
+      operationId: depositByCpf
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+  /wallet/v1/historical-balance:
+    get:
+      tags:
+      - wallet-controller
+      operationId: historicalBalance
+      parameters:
+      - name: cpf
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WalletBalance"
+  /wallet/v1/balance:
+    get:
+      tags:
+      - wallet-controller
+      operationId: balance
+      parameters:
+      - name: cpf
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WalletBalance"
+components:
+  schemas:
+    UserRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        cpf:
+          type: string
+          minLength: 1
+      required:
+      - cpf
+      - name
+    UserResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        cpf:
+          type: string
+    WalletRequest:
+      type: object
+      properties:
+        cpf:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+      required:
+      - amount
+      - cpf
+    WalletTransferRequest:
+      type: object
+      properties:
+        from:
+          type: string
+          minLength: 1
+        to:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+      required:
+      - amount
+      - from
+      - to
+    WalletBalance:
+      type: object
+      properties:
+        balance:
+          type: number
