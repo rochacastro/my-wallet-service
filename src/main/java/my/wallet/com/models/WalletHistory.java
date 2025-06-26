@@ -13,9 +13,10 @@ public class WalletHistory {
   @Id @GeneratedValue private UUID id;
   private UUID walletId;
 
-  @Column(precision = 19, scale = 4)
+  @Column(precision = 19, scale = 4, nullable = false)
   private BigDecimal amount;
 
+  @Column(nullable = false)
   private LocalDateTime transactionTime;
 
   public WalletHistory() {}

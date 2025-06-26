@@ -1,17 +1,18 @@
 package my.wallet.com.models;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
+@Table(
+    name = "users",
+    indexes = {@Index(name = "idx_user_cpf", columnList = "cpf")})
 public class User {
   @Id @GeneratedValue private UUID id;
 
-  @NotBlank private String name;
+  @Column(nullable = false)
+  private String name;
 
-  @NotBlank
   @Column(unique = true)
   private String cpf;
 
