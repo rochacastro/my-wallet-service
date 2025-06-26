@@ -1,5 +1,6 @@
 package my.wallet.com.models;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -22,6 +23,7 @@ public class Wallet {
 
   @Version private Long version;
 
+  @Column(precision = 19, scale = 4)
   private BigDecimal amount;
 
   public Wallet(User user, BigDecimal amount) {
@@ -61,29 +63,5 @@ public class Wallet {
 
   public void setVersion(Long version) {
     this.version = version;
-  }
-
-  public void depositAmount(BigDecimal deposit) {
-    if (deposit == null || deposit.compareTo(BigDecimal.ZERO) <= 0)
-      throw new IllegalArgumentException("Deposit amount must be positive and non-null");
-    this.amount = this.amount.add(deposit);
-  }
-
-  public void withdrawAmount(BigDecimal withdraw) {
-    if (withdraw == null || withdraw.compareTo(BigDecimal.ZERO) <= 0)
-      throw new IllegalArgumentException("Withdraw amount must be positive and non-null");
-    if (withdraw.compareTo(this.amount) > 0)
-      throw new IllegalArgumentException(
-          "Insufficient funds: cannot withdraw more than the current balance");
-    this.amount = this.amount.subtract(withdraw);
-  }
-
-  public boolean balanceAvailable(BigDecimal amount) {
-    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
-      throw new IllegalArgumentException("Transfer amount must be positive and non-null");
-    if (amount.compareTo(this.amount) > 0)
-      throw new IllegalArgumentException(
-          "Insufficient funds: cannot transfer more than the current balance");
-    return true;
   }
 }

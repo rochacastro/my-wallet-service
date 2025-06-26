@@ -1,6 +1,7 @@
 package my.wallet.com.services;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.OptimisticLockException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import my.wallet.com.models.User;
@@ -12,6 +13,9 @@ import my.wallet.com.vos.WalletBalance;
 import my.wallet.com.vos.WalletRequest;
 import my.wallet.com.vos.WalletTransferRequest;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,17 +36,22 @@ public class WalletService {
   }
 
   @Transactional
+  @Retryable(
+      retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class},
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 100))
   public void transferAmount(final WalletTransferRequest walletTransferRequest) {
     validateUserTransferForTheSameUser(walletTransferRequest);
     final BigDecimal amount = walletTransferRequest.amount();
     final User userFrom = userService.findUserByCpf(walletTransferRequest.from());
     final Wallet userFromWallet = userFrom.getWallet();
-    if (userFromWallet.balanceAvailable(amount)) {
+    if (balanceAvailable(userFromWallet, amount)) {
       final User userTo = userService.findUserByCpf(walletTransferRequest.to());
-      userFromWallet.withdrawAmount(amount);
-      userTo.getWallet().depositAmount(amount);
+      Wallet userToWallet = userTo.getWallet();
+      withdrawAmount(userFrom.getWallet(), amount);
+      depositAmount(userToWallet, amount);
       repository.save(userFromWallet);
-      repository.save(userTo.getWallet());
+      repository.save(userToWallet);
 
       saveWalletHistory(userFromWallet);
       saveWalletHistory(userTo.getWallet());
@@ -50,21 +59,29 @@ public class WalletService {
   }
 
   @Transactional
+  @Retryable(
+      retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class},
+      maxAttempts = 2,
+      backoff = @Backoff(delay = 100))
   public void depositAmount(final WalletRequest walletRequest) {
     final User user = userService.findUserByCpf(walletRequest.cpf());
 
     final Wallet wallet = user.getWallet();
-    wallet.depositAmount(walletRequest.amount());
+    depositAmount(wallet, walletRequest.amount());
     repository.save(wallet);
 
     saveWalletHistory(wallet);
   }
 
   @Transactional
+  @Retryable(
+      retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class},
+      maxAttempts = 2,
+      backoff = @Backoff(delay = 100))
   public void withdrawAmount(final WalletRequest walletRequest) {
     final User user = userService.findUserByCpf(walletRequest.cpf());
     final Wallet wallet = user.getWallet();
-    wallet.withdrawAmount(walletRequest.amount());
+    withdrawAmount(wallet, walletRequest.amount());
     repository.save(wallet);
 
     saveWalletHistory(wallet);
@@ -89,7 +106,7 @@ public class WalletService {
             .orElseThrow(
                 () ->
                     new EntityNotFoundException(
-                        String.format("Not founded any amount in the date %s or before", date)));
+                        String.format("Not found any amount in the date %s or before", date)));
     return new WalletBalance(walletHistory.getAmount());
   }
 
@@ -99,10 +116,34 @@ public class WalletService {
     walletHistoricalRepository.save(walletHistory);
   }
 
-  private void validateUserTransferForTheSameUser(final WalletTransferRequest walletTransferRequest) {
+  private void validateUserTransferForTheSameUser(
+      final WalletTransferRequest walletTransferRequest) {
     if (walletTransferRequest.from().equals(walletTransferRequest.to())) {
-      throw new IllegalArgumentException("User cannot transfer to itself");
+      throw new IllegalArgumentException("User cannot transfer to himself");
     }
   }
 
+  private void depositAmount(Wallet wallet, BigDecimal deposit) {
+    if (deposit == null || deposit.compareTo(BigDecimal.ZERO) <= 0)
+      throw new IllegalArgumentException("Deposit amount must be positive and non-null");
+    wallet.setAmount(wallet.getAmount().add(deposit));
+  }
+
+  private void withdrawAmount(Wallet wallet, BigDecimal withdraw) {
+    if (withdraw == null || withdraw.compareTo(BigDecimal.ZERO) <= 0)
+      throw new IllegalArgumentException("Withdraw amount must be positive and non-null");
+    if (withdraw.compareTo(wallet.getAmount()) > 0)
+      throw new IllegalArgumentException(
+          "Insufficient funds: cannot withdraw more than the current balance");
+    wallet.setAmount(wallet.getAmount().subtract(withdraw));
+  }
+
+  private boolean balanceAvailable(Wallet wallet, BigDecimal amount) {
+    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0)
+      throw new IllegalArgumentException("Transfer amount must be positive and non-null");
+    if (amount.compareTo(wallet.getAmount()) > 0)
+      throw new IllegalArgumentException(
+          "Insufficient funds: cannot transfer more than the current balance");
+    return true;
+  }
 }

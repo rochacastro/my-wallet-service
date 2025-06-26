@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -22,17 +21,19 @@ import my.wallet.com.models.Wallet;
 import my.wallet.com.models.WalletHistory;
 import my.wallet.com.repositories.WalletHistoricalRepository;
 import my.wallet.com.repositories.WalletRepository;
+import my.wallet.com.util.UserBuild;
 import my.wallet.com.vos.WalletBalance;
 import my.wallet.com.vos.WalletRequest;
 import my.wallet.com.vos.WalletTransferRequest;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
-@ExtendWith(SpringExtension.class)
+@SpringBootTest
 class WalletServiceTest {
   private static final String VALID_CPF = "26936761003";
   private static final String VALID_CPF_2 = "27175250096";
@@ -45,27 +46,25 @@ class WalletServiceTest {
 
   @InjectMocks private WalletService walletService;
 
+  @SpyBean private WalletService spyWalletService;
+
   @Test
   void shouldTransferAmountSuccessfully() {
+    User fromUser =
+        UserBuild.build(UUID.randomUUID(), "Antigo Nome", VALID_CPF, BigDecimal.valueOf(500));
+    User toUser = UserBuild.build(UUID.randomUUID(), "João", VALID_CPF, BigDecimal.ZERO);
+
     BigDecimal amount = BigDecimal.valueOf(50);
     WalletTransferRequest transferRequest =
         new WalletTransferRequest(VALID_CPF, VALID_CPF_2, amount);
 
-    User fromUser = mock(User.class);
-    User toUser = mock(User.class);
-    Wallet fromWallet = mock(Wallet.class);
-    Wallet toWallet = mock(Wallet.class);
-
     when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
     when(userService.findUserByCpf(VALID_CPF_2)).thenReturn(toUser);
-    when(fromUser.getWallet()).thenReturn(fromWallet);
-    when(toUser.getWallet()).thenReturn(toWallet);
-    when(fromWallet.balanceAvailable(amount)).thenReturn(true);
 
     walletService.transferAmount(transferRequest);
 
-    verify(fromWallet).withdrawAmount(amount);
-    verify(toWallet).depositAmount(amount);
+    verify(walletRepository, times(2)).save(any(Wallet.class));
+    verify(walletHistoricalRepository, times(2)).save(any(WalletHistory.class));
   }
 
   @Test
@@ -176,25 +175,18 @@ class WalletServiceTest {
             EntityNotFoundException.class,
             () -> walletService.getUserHistoricalBalance(VALID_CPF, date));
 
-    assertTrue(exception.getMessage().contains("Not founded any amount"));
+    assertTrue(exception.getMessage().contains("Not found any amount in the date"));
   }
 
   @Test
   void shouldThrowWhenInsufficientFundsOnTransfer() {
+    User fromUser =
+        UserBuild.build(UUID.randomUUID(), "Antigo Nome", VALID_CPF, BigDecimal.valueOf(50));
     BigDecimal amount = BigDecimal.valueOf(1000);
     WalletTransferRequest transferRequest =
         new WalletTransferRequest(VALID_CPF, VALID_CPF_2, amount);
 
-    User fromUser = mock(User.class);
-    Wallet fromWallet = mock(Wallet.class);
-
     when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
-    when(fromUser.getWallet()).thenReturn(fromWallet);
-
-    when(fromWallet.balanceAvailable(amount))
-        .thenThrow(
-            new IllegalArgumentException(
-                "Insufficient funds: cannot transfer more than the current balance"));
 
     IllegalArgumentException exception =
         assertThrows(
@@ -209,8 +201,8 @@ class WalletServiceTest {
     when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
     Wallet fromWallet = mock(Wallet.class);
     when(fromUser.getWallet()).thenReturn(fromWallet);
-    when(fromWallet.balanceAvailable(null))
-        .thenThrow(new IllegalArgumentException("Transfer amount must be positive and non-null"));
+    /*when(fromWallet.balanceAvailable(null))
+    .thenThrow(new IllegalArgumentException("Transfer amount must be positive and non-null"));*/
 
     IllegalArgumentException exception =
         assertThrows(
@@ -228,8 +220,8 @@ class WalletServiceTest {
       when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
       Wallet fromWallet = mock(Wallet.class);
       when(fromUser.getWallet()).thenReturn(fromWallet);
-      when(fromWallet.balanceAvailable(invalidAmount))
-          .thenThrow(new IllegalArgumentException("Transfer amount must be positive and non-null"));
+      /*when(fromWallet.balanceAvailable(invalidAmount))
+      .thenThrow(new IllegalArgumentException("Transfer amount must be positive and non-null"));*/
 
       IllegalArgumentException exception =
           assertThrows(
@@ -240,27 +232,20 @@ class WalletServiceTest {
 
   @Test
   void shouldSaveBothWalletsAndHistoriesOnTransfer() {
+    User fromUser =
+        UserBuild.build(UUID.randomUUID(), "Antigo Nome", VALID_CPF, BigDecimal.valueOf(500));
+    User toUser = UserBuild.build(UUID.randomUUID(), "João", VALID_CPF, BigDecimal.ZERO);
     BigDecimal amount = BigDecimal.valueOf(25);
     WalletTransferRequest transferRequest =
         new WalletTransferRequest(VALID_CPF, VALID_CPF_2, amount);
 
-    User fromUser = mock(User.class);
-    User toUser = mock(User.class);
-    Wallet fromWallet = mock(Wallet.class);
-    Wallet toWallet = mock(Wallet.class);
-
     when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
     when(userService.findUserByCpf(VALID_CPF_2)).thenReturn(toUser);
-    when(fromUser.getWallet()).thenReturn(fromWallet);
-    when(toUser.getWallet()).thenReturn(toWallet);
-    when(fromWallet.balanceAvailable(amount)).thenReturn(true);
 
     walletService.transferAmount(transferRequest);
 
-    verify(fromWallet).withdrawAmount(amount);
-    verify(toWallet).depositAmount(amount);
-    verify(walletRepository).save(fromWallet);
-    verify(walletRepository).save(toWallet);
+    verify(walletRepository).save(fromUser.getWallet());
+    verify(walletRepository).save(toUser.getWallet());
     verify(walletHistoricalRepository, times(2)).save(any(WalletHistory.class));
   }
 
@@ -272,35 +257,56 @@ class WalletServiceTest {
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class, () -> walletService.transferAmount(transferRequest));
-    assertTrue(exception.getMessage().contains("User cannot transfer to itself"));
+    assertTrue(exception.getMessage().contains("User cannot transfer to himself"));
   }
 
   @Test
   void shouldThrowOptimisticLockExceptionOnRepositorySave() {
+    User fromUser =
+        UserBuild.build(UUID.randomUUID(), "Antigo Nome", VALID_CPF, BigDecimal.valueOf(500));
+    User toUser = UserBuild.build(UUID.randomUUID(), "João", VALID_CPF, BigDecimal.ZERO);
     BigDecimal amount = BigDecimal.valueOf(50);
     WalletTransferRequest transferRequest =
         new WalletTransferRequest(VALID_CPF, VALID_CPF_2, amount);
 
-    User fromUser = mock(User.class);
-    User toUser = mock(User.class);
-    Wallet fromWallet = mock(Wallet.class);
-    Wallet toWallet = mock(Wallet.class);
-
     when(userService.findUserByCpf(VALID_CPF)).thenReturn(fromUser);
     when(userService.findUserByCpf(VALID_CPF_2)).thenReturn(toUser);
-    when(fromUser.getWallet()).thenReturn(fromWallet);
-    when(toUser.getWallet()).thenReturn(toWallet);
-    when(fromWallet.balanceAvailable(amount)).thenReturn(true);
-
-    doNothing().when(fromWallet).withdrawAmount(amount);
-    doNothing().when(toWallet).depositAmount(amount);
 
     doThrow(new OptimisticLockException("Optimistic lock error"))
         .when(walletRepository)
-        .save(fromWallet);
+        .save(any(Wallet.class));
 
     assertThrows(
         OptimisticLockException.class, () -> walletService.transferAmount(transferRequest));
-    verify(walletRepository).save(fromWallet);
+    verify(walletRepository).save(fromUser.getWallet());
+  }
+
+  @Test
+  void shouldRetryOnOptimisticLockExceptionAndSucceed() {
+    WalletTransferRequest request = mock(WalletTransferRequest.class);
+
+    doThrow(new ObjectOptimisticLockingFailureException("Wallet", "id"))
+        .doThrow(new ObjectOptimisticLockingFailureException("Wallet", "id"))
+        .doNothing()
+        .when(spyWalletService)
+        .transferAmount(request);
+
+    spyWalletService.transferAmount(request);
+
+    verify(spyWalletService, times(3)).transferAmount(request);
+  }
+
+  @Test
+  void shouldFailAfterMaxAttempts() {
+    WalletTransferRequest request = mock(WalletTransferRequest.class);
+
+    doThrow(new ObjectOptimisticLockingFailureException("Wallet", "id"))
+        .when(spyWalletService)
+        .transferAmount(request);
+
+    assertThrows(
+        ObjectOptimisticLockingFailureException.class,
+        () -> spyWalletService.transferAmount(request));
+    verify(spyWalletService, times(3)).transferAmount(request);
   }
 }

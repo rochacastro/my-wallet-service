@@ -55,15 +55,12 @@ when running the app.
    Ensure a PostgreSQL instance is running on `localhost:5433` with database `demo`, user `postgres`, password
    `postgres`.
 
-3. **Build the project:**
+3. **Build and run locally:**
    ```bash
-   ./mvnw clean package
+   ./mvnw clean spring-boot:run
    ```
-4. **Run the application:**
-   ```bash
-   java -jar target/my-wallet-service-0.0.1-SNAPSHOT.jar
-   ```
-5. **Access the API:**
+
+4. **Access the API:**
     - API root: [http://localhost:8080](http://localhost:8080)
     - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 

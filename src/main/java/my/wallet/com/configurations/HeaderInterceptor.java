@@ -12,9 +12,9 @@ public class HeaderInterceptor implements HandlerInterceptor {
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
       throws Exception {
 
-    String headerValue = request.getHeader("requestTraceId");
+    String requestTraceIdValue = request.getHeader("requestTraceId");
 
-    if (headerValue == null || headerValue.isBlank()) {
+    if (requestTraceIdValue == null || requestTraceIdValue.isBlank()) {
       response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
       response.getWriter().write("Header 'requestTraceId' is required");
       return false;

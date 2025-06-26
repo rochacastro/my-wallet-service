@@ -25,7 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(UserController.class)
 class UserControllerTest {
-
+  private static final String PATH = "/api/v1/user";
   private static final String VALID_CPF = "27175250096";
   private static final String INVALID_CPF = "27175250196";
 
@@ -43,11 +43,11 @@ class UserControllerTest {
 
     mockMvc
         .perform(
-            post("/api/user")
+            post(PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(userRequest))
                 .header("requestTraceId", "teste123"))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
         .andExpect(jsonPath("$.name").value("João"))
         .andExpect(jsonPath("$.cpf").value(VALID_CPF));
 
@@ -60,7 +60,7 @@ class UserControllerTest {
 
     mockMvc
         .perform(
-            post("/api/user")
+            post(PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(userRequest))
                 .header("requestTraceId", "teste123"))
@@ -75,7 +75,7 @@ class UserControllerTest {
 
     mockMvc
         .perform(
-            post("/api/user")
+            post(PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(userRequest))
                 .header("requestTraceId", "teste123"))

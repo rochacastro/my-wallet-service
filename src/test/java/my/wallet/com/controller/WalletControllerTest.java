@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import my.wallet.com.controllers.WalletController;
-import my.wallet.com.services.WalletHandlerService;
+import my.wallet.com.services.WalletService;
 import my.wallet.com.vos.WalletBalance;
 import my.wallet.com.vos.WalletRequest;
 import my.wallet.com.vos.WalletTransferRequest;
@@ -30,12 +30,13 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(WalletController.class)
 class WalletControllerTest {
 
+  private static final String PATH = "/api/v1/wallet";
   private static final String VALID_CPF = "27175250096";
   private static final String VALID_CPF_TO_TRANSFER = "26936761003";
 
   @Autowired private MockMvc mockMvc;
 
-  @MockBean private WalletHandlerService walletHandlerService;
+  @MockBean private WalletService walletService;
 
   @Autowired private ObjectMapper objectMapper;
 
@@ -45,13 +46,13 @@ class WalletControllerTest {
 
     mockMvc
         .perform(
-            patch("/api/wallet/v1/deposit")
+            patch(PATH + "/v1/deposit")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .header("requestTraceId", "123"))
         .andExpect(status().isOk());
 
-    verify(walletHandlerService).depositAmount(any(WalletRequest.class));
+    verify(walletService).depositAmount(any(WalletRequest.class));
   }
 
   @Test
@@ -60,24 +61,23 @@ class WalletControllerTest {
 
     mockMvc
         .perform(
-            patch("/api/wallet/v1/withdraw")
+            patch(PATH + "/v1/withdraw")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .header("requestTraceId", "123"))
         .andExpect(status().isOk());
 
-    verify(walletHandlerService).withdrawAmount(any(WalletRequest.class));
+    verify(walletService).withdrawAmount(any(WalletRequest.class));
   }
 
   @Test
   void testBalance() throws Exception {
     WalletBalance balance = new WalletBalance(BigDecimal.valueOf(150.0));
 
-    when(walletHandlerService.getUserBalance(VALID_CPF)).thenReturn(balance);
+    when(walletService.getUserBalance(VALID_CPF)).thenReturn(balance);
 
     mockMvc
-        .perform(
-            get("/api/wallet/v1/balance").param("cpf", VALID_CPF).header("requestTraceId", "123"))
+        .perform(get(PATH + "/v1/balance").param("cpf", VALID_CPF).header("requestTraceId", "123"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.balance").value(150.0));
   }
@@ -87,12 +87,12 @@ class WalletControllerTest {
     LocalDateTime date = LocalDateTime.now().minusDays(1);
     WalletBalance balance = new WalletBalance(BigDecimal.valueOf(120.0));
 
-    when(walletHandlerService.getUserHistoricalBalance(eq(VALID_CPF), any(LocalDateTime.class)))
+    when(walletService.getUserHistoricalBalance(eq(VALID_CPF), any(LocalDateTime.class)))
         .thenReturn(balance);
 
     mockMvc
         .perform(
-            get("/api/wallet/v1/historical-balance")
+            get(PATH + "/v1/historical-balance")
                 .param("cpf", VALID_CPF)
                 .param("date", date.toString())
                 .header("requestTraceId", "123"))
@@ -107,12 +107,12 @@ class WalletControllerTest {
 
     mockMvc
         .perform(
-            patch("/api/wallet/v1/transfer")
+            patch(PATH + "/v1/transfer")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .header("requestTraceId", "123"))
         .andExpect(status().isOk());
 
-    verify(walletHandlerService).transferAmountWithRetry(any(WalletTransferRequest.class));
+    verify(walletService).transferAmount(any(WalletTransferRequest.class));
   }
 }
