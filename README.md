@@ -24,14 +24,14 @@ Includes endpoints for user management and wallet balance/history queries.
 
 ## API Endpoints (Summary)
 
-| Endpoint                                             | Method | Description                    |
-|------------------------------------------------------|--------|--------------------------------|
-| `/api/user`                                          | POST   | Create a new user              |
-| `/api/wallet/v1/deposit`                             | PATCH  | Deposit funds by CPF           |
-| `/api/wallet/v1/withdraw`                            | PATCH  | Withdraw funds by CPF          |
-| `/api/wallet/v1/transfer`                            | PATCH  | Transfer funds between users   |
-| `/api/wallet/v1/balance?cpf=...`                     | GET    | Get current wallet balance     |
-| `/api/wallet/v1/historical-balance?cpf=...&date=...` | GET    | Get historical balance by date |
+| Endpoint                                                | Method | Description                    |
+|---------------------------------------------------------|--------|--------------------------------|
+| `/api/v1/user`                                          | POST   | Create a new user              |
+| `/api/v1/wallet/v1/deposit`                             | PATCH  | Deposit funds by CPF           |
+| `/api/v1/wallet/v1/withdraw`                            | PATCH  | Withdraw funds by CPF          |
+| `/api/v1/wallet/v1/transfer`                            | PATCH  | Transfer funds between users   |
+| `/api/v1/wallet/v1/balance?cpf=...`                     | GET    | Get current wallet balance     |
+| `/api/v1/wallet/v1/historical-balance?cpf=...&date=...` | GET    | Get historical balance by date |
 
 For detailed request/response formats, see the [OpenAPI spec](./apispec-my-wallet-service.yaml) or access Swagger UI
 when running the app.
